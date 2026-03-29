@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin | Gestão de Rifa</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text: #111827;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+        /* Sidebar */
+        aside { width: 260px; background: #111827; color: white; padding: 30px 20px; display: flex; flex-direction: column; }
+        aside h2 { font-size: 1.5rem; margin-bottom: 40px; color: var(--primary); text-align: center; }
+        .nav-link { color: #9ca3af; text-decoration: none; padding: 12px; border-radius: 8px; margin-bottom: 10px; display: block; transition: 0.3s; }
+        .nav-link:hover, .nav-link.active { background: var(--primary); color: white; }
+
+        /* Main Content */
+        main { flex: 1; padding: 40px; overflow-y: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        
+        /* Stats Grid */
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: var(--surface); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .stat-card small { color: #6b7280; font-weight: 600; }
+        .stat-card h3 { font-size: 1.5rem; margin-top: 5px; }
+
+        /* Forms & Tables */
+        .card { background: var(--surface); padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .card h2 { margin-bottom: 20px; font-size: 1.2rem; border-left: 4px solid var(--primary); padding-left: 15px; }
+
+        .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600; }
+        input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+
+        button { padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-save { background: var(--primary); color: white; }
+        .btn-draw { background: #111827; color: white; width: 100%; font-size: 1.1rem; }
+        .btn-confirm { background: var(--success); color: white; font-size: 0.8rem; padding: 5px 10px; }
+        .btn-delete { background: var(--danger); color: white; font-size: 0.8rem; padding: 5px 10px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #f3f4f6; color: #6b7280; font-size: 0.8rem; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 0.9rem; }
+
+        #login-overlay { position: fixed; inset: 0; background: #111827; z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: white; padding: 40px; border-radius: 20px; width: 350px; text-align: center; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Overlay de Login Administrativo -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="margin-bottom: 20px;">Admin Login</h2>
+            <input type="email" id="admin-email" placeholder="E-mail" style="margin-bottom: 10px;">
+            <input type="password" id="admin-pass" placeholder="Senha" style="margin-bottom: 20px;">
+            <button class="btn-save" style="width: 100%;" onclick="adminLogin()">Acessar Painel</button>
+        </div>
+    </div>
+
+    <aside>
+        <h2>RifaAdmin</h2>
+        <a href="#" class="nav-link active">Dashboard</a>
+        <a href="#" class="nav-link" onclick="logout()">Sair do Sistema</a>
+    </aside>
+
+    <main id="main-content" class="hidden">
+        <div class="header">
+            <h1>Dashboard de Vendas</h1>
+            <p id="admin-welcome">Olá, Administrador</p>
+        </div>
+
+        <!-- Cards de Estatísticas -->
+        <section class="stats">
+            <div class="stat-card">
+                <small>TOTAL ARRECADADO</small>
+                <h3 id="stat-money" style="color: var(--success);">R$ 0,00</h3>
+            </div>
+            <div class="stat-card">
+                <small>NÚMEROS PAGOS</small>
+                <h3 id="stat-paid">0</h3>
+            </div>
+            <div class="stat-card">
+                <small>PENDENTES</small>
+                <h3 id="stat-pending" style="color: var(--warning);">0</h3>
+            </div>
+            <div class="stat-card">
+                <small>LIVRES</small>
+                <h3 id="stat-free">500</h3>
+            </div>
+        </section>
+
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px;">
+            
+            <!-- Gestão de Pedidos -->
+            <div>
+                <div class="card">
+                    <h2>Aprovações Pendentes</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Usuário</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-pending">
+                            <!-- JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h2>Sorteio e Premiação</h2>
+                    <p style="margin-bottom: 20px; color: #6b7280;">O sorteio seleciona aleatoriamente um número entre todos os que já foram <b>pagos</b>.</p>
+                    <button class="btn-draw" onclick="realizarSorteio()">🎰 Rodar Sorteio Aleatório</button>
+                    <div id="winner-display" class="hidden" style="margin-top: 20px; padding: 20px; background: #fef3c7; border-radius: 12px; text-align: center; border: 2px dashed #f59e0b;">
+                        <!-- JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configurações da Rifa -->
+            <div>
+                <div class="card">
+                    <h2>Configurações da Rifa</h2>
+                    <div class="input-group">
+                        <label>Nome da Rifa</label>
+                        <input type="text" id="cfg-name" placeholder="Ex: Rifa Solidária">
+                    </div>
+                    <div class="grid-inputs">
+                        <div class="input-group">
+                            <label>Preço do Número (R$)</label>
+                            <input type="number" id="cfg-price">
+                        </div>
+                        <div class="input-group">
+                            <label>Meta (R$)</label>
+                            <input type="number" id="cfg-goal">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Chave PIX</label>
+                        <input type="text" id="cfg-pix">
+                    </div>
+                    <button class="btn-save" style="width: 100%;" onclick="saveSettings()">Atualizar Configurações</button>
+                </div>
+
+                <div class="card" style="border: 2px solid #fee2e2;">
+                    <h2 style="color: var(--danger); border-color: var(--danger);">Zona de Perigo</h2>
+                    <p style="font-size: 0.8rem; margin-bottom: 15px;">Isso apagará todas as reservas e vendas atuais para começar uma nova rifa.</p>
+                    <button class="btn-delete" style="width: 100%; padding: 10px;" onclick="resetRaffle()">Limpar Toda a Rifa</button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+
+        // CONFIGURAÇÕES DO SEU FIREBASE
+        const firebaseConfig = {
+  apiKey: "AIzaSyAuKFA-dCG0a6exiB6NrfUaEacnUIy9jmw",
+  authDomain: "minha-casa-6b895.firebaseapp.com",
+  databaseURL: "https://minha-casa-6b895-default-rtdb.firebaseio.com",
+  projectId: "minha-casa-6b895",
+  storageBucket: "minha-casa-6b895.firebasestorage.app",
+  messagingSenderId: "881316241232",
+  appId: "1:881316241232:web:a5b80d606879bd386f5655",
+  
+};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const ADMIN_EMAIL = "jjosesilvaa321@gmail.com"; // Só este e-mail acessa o painel
+
+        // --- LOGIN ---
+        window.adminLogin = async () => {
+            const email = document.getElementById('admin-email').value;
+            const pass = document.getElementById('admin-pass').value;
+            if(email !== ADMIN_EMAIL) return alert("Acesso negado.");
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch(e) { alert("Senha incorreta."); }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user && user.email === ADMIN_EMAIL) {
+                document.getElementById('login-overlay').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                loadDashboard();
+            } else {
+                document.getElementById('login-overlay').classList.remove('hidden');
+            }
+        });
+
+        // --- CARREGAR DADOS ---
+        function loadDashboard() {
+            // Sincronizar Configurações
+            onSnapshot(doc(db, "config", "geral"), (snap) => {
+                if(snap.exists()){
+                    const d = snap.data();
+                    document.getElementById('cfg-name').value = d.nome;
+                    document.getElementById('cfg-price').value = d.preco;
+                    document.getElementById('cfg-goal').value = d.meta;
+                    document.getElementById('cfg-pix').value = d.pix;
+                }
+            });
+
+            // Sincronizar Números e Pedidos
+            onSnapshot(collection(db, "rifas"), (snap) => {
+                let paidCount = 0;
+                let pendingCount = 0;
+                const pendingTable = document.getElementById('table-pending');
+                pendingTable.innerHTML = '';
+
+                snap.forEach(d => {
+                    const data = d.data();
+                    if(data.status === 'paid') paidCount++;
+                    if(data.status === 'reserved') {
+                        pendingCount++;
+                        pendingTable.innerHTML += `
+                            <tr>
+                                <td><b>${d.id}</b></td>
+                                <td>${data.email}</td>
+                                <td>
+                                    <button class="btn-confirm" onclick="confirmar('${d.id}')">Aprovar</button>
+                                    <button class="btn-delete" onclick="liberar('${d.id}')">X</button>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                document.getElementById('stat-paid').innerText = paidCount;
+                document.getElementById('stat-pending').innerText = pendingCount;
+                document.getElementById('stat-free').innerText = 500 - paidCount - pendingCount;
+                
+                const preco = parseFloat(document.getElementById('cfg-price').value) || 0;
+                document.getElementById('stat-money').innerText = `R$ ${(paidCount * preco).toLocaleString('pt-BR')}`;
+            });
+        }
+
+        // --- AÇÕES DO ADMIN ---
+        window.saveSettings = async () => {
+            await setDoc(doc(db, "config", "geral"), {
+                nome: document.getElementById('cfg-name').value,
+                preco: parseFloat(document.getElementById('cfg-price').value),
+                meta: parseFloat(document.getElementById('cfg-goal').value),
+                pix: document.getElementById('cfg-pix').value
+            });
+            Swal.fire("Sucesso!", "Configurações atualizadas.", "success");
+        };
+
+        window.confirmar = async (id) => {
+            await updateDoc(doc(db, "rifas", id), { status: 'paid' });
+        };
+
+        window.liberar = async (id) => {
+            await deleteDoc(doc(db, "rifas", id));
+        };
+
+        window.realizarSorteio = async () => {
+            const querySnapshot = await getDocs(query(collection(db, "rifas"), where("status", "==", "paid")));
+            const pagos = [];
+            querySnapshot.forEach(doc => pagos.push({id: doc.id, ...doc.data()}));
+
+            if(pagos.length === 0) return Swal.fire("Erro", "Não há números pagos para sortear.", "error");
+
+            const vencedor = pagos[Math.floor(Math.random() * pagos.length)];
+            
+            const display = document.getElementById('winner-display');
+            display.classList.remove('hidden');
+            display.innerHTML = `
+                <h4 style="color: #92400e">🏆 VENCEDOR SORTEADO!</h4>
+                <h1 style="font-size: 3rem; margin: 10px 0;">${vencedor.id}</h1>
+                <p>Ganhador: <b>${vencedor.email}</b></p>
+            `;
+            Swal.fire("Sorteio Realizado!", `O número vencedor é o ${vencedor.id}`, "success");
+        };
+
+        window.resetRaffle = async () => {
+            if(!confirm("TEM CERTEZA? Isso apagará todos os dados de vendas!")) return;
+            const snap = await getDocs(collection(db, "rifas"));
+            snap.forEach(async (d) => await deleteDoc(doc(db, "rifas", d.id)));
+            Swal.fire("Resetado!", "A rifa está limpa para uma nova campanha.", "success");
+        };
+
+        window.logout = () => signOut(auth);
+    </script>
+</body>
+</html>
